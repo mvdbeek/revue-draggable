@@ -1,11 +1,7 @@
 import { get, MaybeElementRef } from '@vueuse/core'
 import {
-  canDragX,
-  canDragY,
   createDraggableData,
   getBoundPosition,
-  createCSSTransform,
-  createSVGTransform,
   int,
   log,
   DraggableEvent,
@@ -80,7 +76,6 @@ const useDraggable = (target: MaybeElementRef, options?: Partial<DraggableOption
       if ((shouldUpdate || state.update) === false) return false
 
       state.currentPosition = newState
-      transform()
     }
 
     const onDragStop: DraggableEventHandler = (e, data) => {
@@ -102,69 +97,6 @@ const useDraggable = (target: MaybeElementRef, options?: Partial<DraggableOption
       state.dragging = false
     }
 
-    const applyTransformFix = () => {
-      const target = get(node)
-      if (!target) return
-      target.style.transform = ''
-      target.style.left = ''
-      target.style.top = ''
-      target.style.position = 'relative'
-      const { x, y } = transformOpts.value
-      target.style.left = Math.round(int(<string>state.positionOffset?.x) || 0) + Math.round(Number(x)) + 'px'
-      target.style.top = Math.round(int(<string>state.positionOffset?.y) || 0) + Math.round(Number(y)) + 'px'
-    }
-
-    const removeTransformFix = () => {
-      const target = get(node)
-      if (!target) return
-      target.style.transform = ''
-      target.style.position = ''
-      target.style.left = ''
-      target.style.top = ''
-    }
-
-    // If this is controlled, we don't want to move it - unless it's dragging.
-    const transformOpts = computed(() => {
-      const canDrag = Boolean(state.position) || state.dragging
-      const validPosition = state.position || state.defaultPosition
-      return {
-        // Set left if horizontal drag is enabled
-        x: canDragX(state.axis) && get(canDrag) ? state.currentPosition.x : get(validPosition).x,
-
-        // Set top if vertical drag is enabled
-        y: canDragY(state.axis) && get(canDrag) ? state.currentPosition.y : get(validPosition).y
-      }
-    })
-
-    const transform = (force = false) => {
-      const n = get(node)
-      if (n && (force || (state.update && state.dragging))) {
-        if (state.enableTransformFix) removeTransformFix()
-
-        const offset = state.positionOffset
-        const isSvg = state.isElementSVG
-        const styles = (!isSvg && createCSSTransform(get(transformOpts), offset)) || false
-        const svgTransform = (isSvg && createSVGTransform(get(transformOpts), offset)) || false
-
-        if (typeof svgTransform === 'string') n.setAttribute('transform', svgTransform)
-        if (styles) {
-          for (const style of Object.keys(styles)) {
-            if (style === 'transform')
-              styles[style] += `${n.style[style]}`.replace(/translate\((-?\d+?.{0,2},? ?)+\)+/gm, '').trim()
-            n.style[style as any] = styles[style]
-          }
-        }
-
-        const transformedData: TransformEvent = {
-          el: get(node),
-          style: styles,
-          transform: svgTransform,
-          classes: classes.value
-        }
-        onTransformedHook.trigger(transformedData)
-      }
-    }
-
     const classes = computed(() => ({
       [state.defaultClassName]: !state.disabled,
       [state.defaultClassNameDragging]: state.dragging,
@@ -181,7 +113,7 @@ const useDraggable = (target: MaybeElementRef, options?: Partial<DraggableOption
     coreStart(({ event, data }) => onDragStart(event, data))
     coreStop(({ event, data }) => onDragStop(event, data))
 
-    const onUpdated = (force = false) => {
+    const onUpdated = () => {
       const pos = state.position
       log('Draggable: Updated %j', {
         position: state.currentPosition,
@@ -191,9 +123,6 @@ const useDraggable = (target: MaybeElementRef, options?: Partial<DraggableOption
         state.currentPosition = pos
         state.prevPropsPosition = { ...pos }
       }
-
-      if (state.enableTransformFix) applyTransformFix()
-      else transform(force)
     }
 
     tryOnUnmounted(() => {
