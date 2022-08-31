@@ -92,8 +92,6 @@ const useDraggable = (target: MaybeElementRef, options?: Partial<DraggableOption
 
       log('Draggable: onDragStop: %j', data)
 
-      if (state.enableTransformFix) applyTransformFix()
-
       state.dragging = false
     }
 
@@ -149,14 +147,12 @@ const useDraggable = (target: MaybeElementRef, options?: Partial<DraggableOption
 
       state.currentPosition = { x, y }
       addClasses()
-      onUpdated(true)
+      onUpdated()
 
       watch(
         () => state.position,
-        (val) => {
-          let force = false
-          if (val?.x !== state.currentPosition.x || val.y !== state.currentPosition.y) force = true
-          onUpdated(force)
+        () => {
+          onUpdated()
         }
       )
     })
